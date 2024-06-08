@@ -1,43 +1,37 @@
-![Malachite Mountains](mm_hl.png)
-
-_logo design: Elizaveta Ilin (2021)_
-
-# MalachiteMountains
-
-The name of this repository refers to Russian folklore, a fairy tale about the [Malachite Casket](https://en.wikipedia.org/wiki/The_Malachite_Casket_(fairy_tale)).
-
-## Relevant contents of this repository
-
+# Repository of vidante2024 using MalachiteMountains
 
 ### master branch
 
-Bare bones package only, updated to be more modular, using classes.
+### masterthesis
 
-### ilin2021 branch
-
-This branch contains the necessary data, model code and scripts to reproduce the results, figures, and tables that appear in [Ilin et al. (2021)](https://ui.adsabs.harvard.edu/abs/2021MNRAS.507.1723I/abstract)
-
-- data/
-  - inclinations/
-    - *post_compound.p
-    - *post.dat
-    - inclination_output.dat
-  - solar/
-    - sars.csv (solar superactive regions)
-  - summary/
-    - inclination_input.csv (rotation period, vsini, stellar radius)
-    - inits\_decoupled\_GP.csv (inits for MCMC model fit)
-    - lcs.csv (other stellar and light curve properties)
-  - lcs/
-    - *.csv (light curves including quiescent model flux array)
+This branch contains the necessary data and scripts to reproduce results for localizing a giant flare in a scallop-shell star.
 
 - analysis/
-  - notebooks/
+  - scripts/
+    - data/
+      - chains/
+        - *.h5 (chains from mcmc.py)
+      - extracted_flare.csv (extracted flare from flare_extraction.py)
+      - mw_cosi.txt (posterior distribution of cos i from cos_i_mw.py)
+
+    - output/
+      - flare_extract/
+        - *.png (all outputs from flare_extraction.py)
+      - mcmc/
+        - *.png (all outputs from cos_i_mw.py, mcmc.py, and mcmc_plot.py)
+        
     - funcs/
-        - `model.py` - FlareModulator class
-    - *.ipynb
-        - the majority of scripts used in this work as notebooks
-    - *.py
-        - some pure python scripts
+      - *.py models from MalachiteMountains
+      - `model.py` modified from MalachiteMountains to include peak bump flares
+
+    - `cos_i_mw.py` 
+      - script to generate cos i distribution from Masuda and Winn
+    - `flare_extraction.py`
+      - script to extract flares from stars with complex modulation
+    - `mcmc.py`
+      - script to localize giant flare with MCMC
+      - uses data from cos_i_mw.py and flare_extraction.py
+    - `mcmc_plot.py`
+      - script for plot purposes
     
 

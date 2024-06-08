@@ -1,3 +1,20 @@
+"""
+UTF-8, Python 3
+
+------------------
+MalachiteMountains
+------------------
+
+Ekaterina Ilin, 2020, MIT License
+
+
+This module contains the FlareModulator model.
+The model takes flare parameters, and stellar parameters
+as input and produces a rotationally modulated flare light curve.
+
+"""
+
+
 import numpy as np
 import pandas as pd
 
@@ -6,11 +23,16 @@ from .flarefit import (uninformative_prior,
                        empirical_prior, 
                        calculate_posterior_value_that_can_be_passed_to_mcmc)
 
-import astropy.units as u
-from astropy.constants import c, h, k_B, R_sun, L_sun
+#import astropy.units as u
+#from astropy.constants import c, h, k_B
 
 from scipy.stats import binned_statistic
 
+# Constants in CGS values ---------------------------------------------
+
+c = 29979245800.0
+h = 6.62607015e-27
+k_B = 1.380649e-16
 
 # Read in response curve ---------------------------------------------
 
@@ -21,7 +43,7 @@ for key, val in response_curve.items():
     df = pd.read_csv(f"static/{val}",
                      delimiter="\s+", skiprows=8)
     df = df.sort_values(by="nm", ascending=True)
-    rwav = (df.nm * 10).values * u.angstrom #convert to angstroms
+    rwav = (df.nm * 10).values #convert to angstroms
     rres = (df.response).values
     response_curve[key] = (rwav,rres)
 
@@ -62,15 +84,15 @@ class FlareModulator:
     flaret : float
         The flare temperature in K.
     """
-    def __init__(self, phi, flux, flux_err, qlum, R,
-                 median, nflares, iscoupled, num_pts=100,
+    def __init__(self, phi, qlum, R, flux=None, flux_err=None,
+                 median=1., nflares=1, iscoupled=True, num_pts=100,
                  mission="TESS", flaret=1e4):
         
-        self.phi = phi
+        self.phi = phi # in radian
         self.flux = flux
         self.flux_err = flux_err
-        self.qlum = qlum
-        self.R = R
+        self.qlum = qlum # erg/s
+        self.R = R # in cm
         self.median = median
         self.num_pts = num_pts
 
@@ -81,7 +103,7 @@ class FlareModulator:
 
     def flare_template(self, params):
         """
-        Picks a flare tmeplate based whether the flares' rise and 
+        Picks a flare template based whether the flares' rise and 
         decay phase are coupled or not. If it is coupled, only
         one FWHM is used. If it is not coupled, two FWHM are used, 
         one for the rise and one for the decay phase.
@@ -98,9 +120,54 @@ class FlareModulator:
             return aflare(self.phi, params[1], params[2], params[0])
         elif self.iscoupled == False:
             return aflare_decoupled(self.phi, params[1], params[2:4], params[0])
+    
+    def bump_template(self, params, bumpparams):
+        """Get peak bump flare template
+        """
 
-    def modulated_flux(self, theta, phi0, i, flareparams):
+        # bumpparams = [t_center, sigma, amp_bump]
+
+        peakbump = []
+
+        for x in self.phi:
+
+            flare_under = aflare(x, params[1], params[2], params[0])
+            bump = gaussian(x, bumpparams[0], bumpparams[1], bumpparams[2])
+
+            # if x > bumpparams[3]:
+
+            if x > params[1]:
+                pk = flare_under + bump
+            else:
+                pk = flare_under
+            
+            peakbump.append(pk)
+
+        peakbump = np.array(peakbump)
+
+        return peakbump
+
+    def modulated_flux(self, theta, phi0, i, flareparams, bumpparams=None, nobump=True):
+        """Method to create a modulated flux array based on the flare parameters.
         
+        Parameters:
+        -----------
+        theta : float
+            flare latitude
+        phi0 : float
+            flare longitude at t0
+        i : float
+            stellar inclination
+        flareparams : list of tuples
+            The parameters of the flares. Each tuple contains the flare parameters
+            for one flare. The parameters are: (amplitude, tpeak, fwhm, (fwhm2))
+            FWHM2 is needed, if the flares have decoupled rise and decay phases.
+
+        Returns:
+        --------
+        modulated_flux : array-like
+            The modulated flux array.
+        """
 
         ms = [] # list of flares
 
@@ -111,9 +178,13 @@ class FlareModulator:
             # (the amplitude is the real one observed from the front)
             radius = calculate_angular_radius(self.Fth, params[0], self.qlum, self.R) 
 
-            # get a flare template, either with coupled or decoupled FWHM
-            flare = self.flare_template(params)
-      
+            if nobump == True:
+                # get a flare template, either with coupled or decoupled FWHM
+                flare = self.flare_template(params)
+            elif nobump == False:
+                # get a peak bump flare template
+                flare = self.bump_template(params, bumpparams)
+
             # calculate the latitudes and longitudes of a flaring spot grid
             # if the radius is relatively small, use a circular approximation
             if radius < 10: #deg
@@ -130,13 +201,18 @@ class FlareModulator:
         # sum contributions from each flare and add the median flux
         return sum(ms, self.median)
 
-    def log_likelihood(self, params, sta=0, sto=None):
+    def log_likelihood(self, params, sta=0, sto=None, nobump=True):
         """
         Calculate the log of the likelihood function of the model with
         given parameters.
 
 
         Parameters
+        ----------
+        params : array-like
+            The parameters of the model. The first element is the latitude of the flare,
+            the second element is the longitude of the flare at t0, the third element is
+            the inclination of the star, the rest of the elements are the flare parameters
 
         Structure of params:
 
@@ -147,18 +223,55 @@ class FlareModulator:
         2     | inclination
         3+    | (number of flares f1, f2, ...) x (number of parameters a,b,c...) 
                 as in [f1a, f1b, f1c, f2a, f2b, f2c]
+                
  
-        """
-        theta, phi0, i =  params[:3]
-        flareparams = np.array(params[3:]).reshape(self.nflares, len(params[3:])//self.nflares)
-        model = self.modulated_flux(theta, phi0, i, flareparams)
+        Returns
+        -------
+        logL : float
+            The log of the likelihood function.
 
-        fr2 = self.flux_err[sta:sto]**2
- 
-        val = -0.5 * np.sum((self.flux[sta:sto] - model[sta:sto]) ** 2 / fr2 + np.log(fr2))
-        return val
-    
-    
+        """
+
+        if nobump == True:
+            # for flare model without peak bump flare
+            # extract the model parameters that are valid for all flares
+            theta, phi0, i =  params[:3]
+
+            # extract the flare parameters
+            flareparams = np.array(params[3:]).reshape(self.nflares, len(params[3:])//self.nflares)
+            
+            # calculate the rotationally modulated flux
+            model = self.modulated_flux(theta, phi0, i, flareparams, nobump=True)
+
+            # calculate the square of the uncertainties
+            fr2 = self.flux_err[sta:sto]**2
+
+            # calculate the log of the likelihood function
+            logL = -0.5 * np.sum((self.flux[sta:sto] - model[sta:sto]) ** 2 / fr2 + np.log(fr2))
+            
+            return logL
+        
+        elif nobump == False:
+            theta, phi0, i, a, phi_a, fwhm, t_center, sigma, amp_bump = params
+
+            # flare parameters
+            flareparams = [(a, phi_a, fwhm)]
+
+            # bump parameters
+            bumpparams = [t_center, sigma, amp_bump]
+
+            # calculate the rotationally modulated flux
+            model = self.modulated_flux(theta, phi0, i, flareparams, bumpparams, nobump=False)
+
+            # calculate the square of the uncertainties
+            fr2 = self.flux_err[sta:sto]**2
+
+            # calculate the log of the likelihood function
+            logL = -0.5 * np.sum((self.flux[sta:sto] - model[sta:sto]) ** 2 / fr2 + np.log(fr2))
+
+            return logL
+
+
     def chi_square(self, params, sta=0, sto=None):
         """structure of params:
 
@@ -187,7 +300,11 @@ class FlareModulator:
         """
 
         Parameters:
-
+        ------------
+        x : N-array
+            latitude between -pi/2 and pi/2
+        g : astropy compound model 
+            inclination prior
 
         """
         theta, phi0, i =  params[:3]
@@ -283,7 +400,7 @@ def dot_ensemble_circular(lat, lon, radius, num_pts=100):
 
     Here we create a grid on a pole and then rotate it
     around the y- and then around the z- axis to center
-    it on the latitute and longitude we need.
+    it on the latitude and longitude we need.
 
 
     Parameters:
@@ -558,15 +675,15 @@ def black_body_spectrum(wav, t):
 
     Parameters:
     -----------
-    wav : Astropy array
+    wav : numpy array
         wavenlength array
     t : float
         effective temperature in Kelvin
     """
-    t = t * u.K # set unit to Kelvin
+    wav = wav * 1e-8 # convert to cm
 
-    return (( (2 * np.pi * h * c**2) / (wav**5) / (np.exp( (h * c) / (wav * k_B * t) ) - 1))
-            .to("erg*s**(-1)*cm**(-3)")) #simplify the units
+    return ( (2 * np.pi * h * c**2) / (wav**5) / (np.exp( (h * c) / (wav * k_B * t) ) - 1))
+            # units in erg * s**(-1) * cm**(-3)
 
 # ---------------------------------------------------------------------------------
 
@@ -582,7 +699,7 @@ def calculate_specific_flare_flux(mission, flaret=1e4):
 
     Return:
     -------
-    specific flare flux in units erg/
+    specific flare flux in units erg * cm**(-2) * s**(-1)
     """
     if no_nan_inf([flaret]) == False:
         raise ValueError("flaret is NaN or Inf.")
@@ -594,7 +711,7 @@ def calculate_specific_flare_flux(mission, flaret=1e4):
         raise KeyError("Mission can be either Kepler or TESS.")
 
     # create an array to upsample the filter curve to
-    w = np.arange(3000,13001) * u.angstrom
+    w = np.arange(3000,13001) # in angstrom
 
     # interpolate thermal spectrum onto response
     # curve wavelength array, then sum up
@@ -604,12 +721,15 @@ def calculate_specific_flare_flux(mission, flaret=1e4):
     # temperature over an array of wavelength w:
     thermf = black_body_spectrum(w, flaret)
 
+    #w = w * 1e-8 # convert to cm
+
     # Interpolate response from rwav to w:
     rres = np.interp(w,rwav,rres, left=0, right=0)
 
     # Integrating the flux of the thermal
     # spectrum times the response curve over wavelength:
-    return np.trapz(thermf * rres, x=w).to("erg*cm**(-2)*s**(-1)")
+    #return np.trapz(thermf * rres, x=w).to("erg*cm**(-2)*s**(-1)")
+    return np.trapz(thermf * rres, x=w) * 1e-8 # to cm
 
 # ---------------------------------------------------------------------------------
 
@@ -619,14 +739,14 @@ def calculate_angular_radius(Fth, a, qlum, R):
 
     Parameters:
     ------------
-    Fth : astropy value > 0
+    Fth : float > 0
         specific flare flux in erg/cm^2/s
     a : float > 0
         relative flare amplitude
-    qlum : astropy value > 0
+    qlum : float > 0
         projected quiescent luminosity in erg/s
     R : float > 0
-        stellar radius in solar radii
+        stellar radius in cm
 
     Return:
     -------
@@ -637,8 +757,7 @@ def calculate_angular_radius(Fth, a, qlum, R):
     if sin > 1:
         raise ValueError("Flare area seems larger than stellar hemisphere.")
 
-    return np.arcsin(sin).to("deg").value
-
+    return np.rad2deg(np.arcsin(sin))
 
 
 def aflare(t, tpeak, dur, ampl, upsample=False, uptime=10):
@@ -814,3 +933,19 @@ def calculate_ED(t, t0, fwhm, ampl, decoupled=True):
     if no_nan_inf([t0, *fwhm_, ampl]) == False:
         raise ValueError("flaret is NaN or Inf.")
     return np.sum(np.diff(t) * model(t, t0, fwhm, ampl)[:-1]) * 60.0 * 60.0 * 24.0
+
+def gaussian(t, t_center, sigma_bump, amp_bump):
+    """Calculate gaussian function
+
+    Parameters:
+    -----------
+    t   : numpy.array
+        observation times in days
+    t_center: float
+        bump peak time
+    sigma_bump: float
+        bump fwhm/sigma
+    amp_bump: float
+        bump amplitude
+    """
+    return np.exp(-0.5 * ((t - t_center) / sigma_bump)**2) * amp_bump
