@@ -3,3 +3,5 @@
 *_pycache_*
 **/*.h5
 **/*.png
+**/mw_cosi_2.txt
+**/stellar_parameters.txt
