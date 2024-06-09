@@ -199,8 +199,25 @@ def diversivy(pos, min, max, nwalkers, idx=0):
 
     """
     Diversivy walker initial positions to see how they converge.
-    
+
     idx 0 for theta_a (latitude)
+
+    Attributes:
+    -----------
+    pos : array-like
+        theta_a, phi0, i, a, phi_a, fwhm, t_center, sigma, amp_bump
+    min : int
+        starting value for theta_a dispersion
+    max : int
+        ending value for theta_a dispersion
+    nwalkers: int
+        number of walkers
+    idx : int
+        index of which parameter that wants to be dispersed
+    
+    Return:
+    -----------
+    new pos where one of the parameters is dispersed
 
 
     """
@@ -208,10 +225,82 @@ def diversivy(pos, min, max, nwalkers, idx=0):
     value = np.linspace(min, max, nwalkers)
 
     # To spread walker with different initial value for theta_a
-    for i in range(20):
+    for i in range(nwalkers):
         pos[i][idx] = np.deg2rad(value[i])
     
     return pos
+
+#-------------------------------------------------------
+
+# Get walkers at different positions
+def get_mcmc_sampling(initial, nwalkers, ndim, iter, n, dis=True,
+                      min=None, max=None, continue_from_prev=False, 
+                      file_name=None):
+
+    """
+    Run MCMC sampling to get posterior probability distribution of all
+    parameters.
+
+    Attributes:
+    -----------
+    initial : array-like
+        theta_a, phi0, i, a, phi_a, fwhm, t_center, sigma, amp_bump
+    nwalkers: int
+        number of walkers, preferably more than 2 x ndim
+    ndim: int
+        number of dimension (parameters)
+    iter: int
+        number of iterations
+    n   : string
+        for chain name filing purposes
+    dis : bool
+        if True, then initial position of theta_a is dispersed
+        from a to b instead of moving near initial position
+    continue_from_prev: bool
+        if True, then chain continues from last chain
+    
+    Return:
+    -----------
+    sampling of all parameters from MCMC
+
+    """
+
+    # Assign initial positions of walkers
+    pos = initial + 1e-2 * np.random.randn(nwalkers, ndim)
+
+    # For filename export
+    file_n = '{:.0f}'.format(np.rad2deg(initial[0]))
+
+    # Disperse walkers?
+    if dis:
+    
+        # To diversivy walkers position
+        pos = diversivy(pos=pos, min=min, max=max, nwalkers=nwalkers)
+        file_n = '{}to{}'.format(min, max)
+
+    # Set up backend filename
+    if file_name != None:
+        filename = "data/chains/{}".format(file_name)
+    else:
+        filename = "data/chains/{}_theta={}_{}.h5".format(n, file_n, iter)
+
+    # Set up backend
+    backend = emcee.backends.HDFBackend(filename)
+
+    # If continue chain from previous pos becomes None because the initial
+    # position is from the chain. Backend also doesn't reset
+    if continue_from_prev:
+        pos = None
+    else:
+        backend.reset(nwalkers, ndim)   # Make sure new chain starts from scratch
+
+    # MCMC with threading
+    with Pool() as pool:
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, pool=pool, 
+                                        backend=backend, args=(flux, flux_err))
+        sampler.run_mcmc(pos, iter, progress=True, store=True)
+    
+    return sampler
 
 #-------------------------------------------------------
 
@@ -320,48 +409,24 @@ if __name__ == "__main__":
     # MCMC
     #-------------------------------------------------------
 
-    # Assign initial positions of walkers
-    pos = initial + 1e-2 * np.random.randn(20, 9)
-    nwalkers, ndim = pos.shape
+    # Define some samplers parameters
+    #--------------------------
 
-    # For filename export
-    file_n = '{:.1f}'.format(np.rad2deg(theta_a))
+    nwalkers = 20               # number of walkers
+    ndim = len(initial)         # number of dimension
+    discard = 0                 # how many to discard
+    n = '09'                    # for name filing purposes
 
-    # Diversivy walkers?
-    div = True
-
-    if div:
-
-        # Range of theta for walkers
-        min = 10
-        max = 40
-
-        # To diversivy walkers position
-        pos = diversivy(pos=pos, min=min, max=max, nwalkers=nwalkers)
-        file_n = '{}to{}'.format(min, max)
-
-
-    # For filename export
-    n = '08'
-    iter = 25000
-
-    # Set up the backend
-    filename = "data/chains/{}_theta={}_{}.h5".format(n, file_n, iter)
-
-    backend = emcee.backends.HDFBackend(filename)
-    backend.reset(nwalkers, ndim)
-
-    # MCMC with threading
-    with Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, pool=pool, backend=backend, args=(flux, flux_err))
-        sampler.run_mcmc(pos, iter, progress=True, store=True)
+    # Get sampling from MCMC
+    sampler = get_mcmc_sampling(initial=initial, nwalkers=nwalkers, ndim=ndim,
+                                iter=25000, n=n, dis=False, continue_from_prev=True,
+                                file_name='07_theta=10to40_25000.h5')
 
     # Plot chains
-    plot_chain(sampler, discard=10000, ndim=ndim, title='sampler_chain_{}.png'.format(n))
+    plot_chain(sampler, discard=discard, ndim=ndim, title='sampler_chain_{}.png'.format(n))
 
     # Plot corner plot
-    plot_corner(sampler, discard=10000, ndim=ndim, title='sampler_corner_{}.png'.format(n))
-
+    plot_corner(sampler, discard=discard, ndim=ndim, title='sampler_corner_{}.png'.format(n))
 
 
 

@@ -311,9 +311,15 @@ def plot_analytical(param, cos_i_samples, scale, title):
 
     # Plot a histogram of the marginal likelihood of cos_i
     plt.figure(figsize=[8,6])
-    plt.hist(cos_i_samples, bins=50, density=True, color='green', edgecolor='black', alpha=0.5, label='MCMC Marginal Posterior')
-    plt.plot(cos_i, pos_cos*scale, color='blue', linewidth=5, alpha=0.5, label='Analytical Marginal Posterior')
-    plt.plot(cos_i, pdf_interp(cos_i), color='red', linewidth=5, alpha=0.5, label='Interpolation Marginal Posterior')
+
+    plt.hist(cos_i_samples, bins=50, density=True, color='green', 
+             edgecolor='black', alpha=0.5, label='MCMC Marginal Posterior')
+    
+    plt.plot(cos_i, pos_cos*scale, color='blue', linewidth=5, alpha=0.5, 
+             label='Analytical Marginal Posterior')
+    
+    plt.plot(cos_i, pdf_interp(cos_i), color='red', linewidth=5, alpha=0.5,
+              label='Interpolation Marginal Posterior')
 
     # Add labels and title
     plt.xlabel('cos_i')
@@ -349,9 +355,6 @@ def plot_i_samples(param, cos_i_samples, title):
 
     # Comvert cos i to i in deg
     i_samples = np.rad2deg(np.arccos(cos_i_samples))
-
-    # Make histogram
-    hist, bin_edges = np.histogram(cos_i_samples, bins=50, density=True)
 
     # Find 16th, 50th, 84th percentile (68% C.I)
     mcmc = np.percentile(i_samples, [16, 50, 84])
