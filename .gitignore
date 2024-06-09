@@ -5,3 +5,7 @@
 **/*.png
 **/mw_cosi_2.txt
 **/stellar_parameters.txt
+**/*.json
+**/*.pkl
+**/vsini_grid
+**/func_code.py
