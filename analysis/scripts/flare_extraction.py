@@ -95,9 +95,13 @@ if __name__ == "__main__":
     # Bin folded lightcurve
     #-----------------------
 
+    # Define number of bins
     num_bins = np.linspace(0,1.0,300)
+
+    # Group folded lightcurve into several bins
     df_bin = df_fold.groupby(pd.cut(df_fold.Phase,num_bins)).Flux.median().reset_index()
 
+    # Center of bin is the phase at the middle of the bin
     df_bin['Center'] = df_bin['Phase'].apply(lambda x: x.mid)
 
 
@@ -151,6 +155,7 @@ if __name__ == "__main__":
     mod_dict = {'Time': t,
                 'Flux': f}
     
+    # Save into pandas
     df_mod = pd.DataFrame(data=mod_dict)
 
 

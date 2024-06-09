@@ -199,8 +199,10 @@ def plot_chain(sampler, discard, ndim, labels, title):
 
     fig, axes = plt.subplots(ndim, figsize=(10, 7), sharex=True)
 
+    # Get all samples to be plotted with several iterations discarded
     samples = sampler.get_chain(discard=discard)
 
+    # Plot the chains for each parameter
     for i in range(ndim):
         ax = axes[i]
         ax.plot(samples[:, :, i], "k", alpha=0.3)
@@ -235,8 +237,10 @@ def plot_corner(sampler, discard, ndim, labels, title):
 
     """
 
+    # Get all samples to be plotted with several iterations discarded
     flat_samples = sampler.get_chain(discard=discard, thin=15, flat=True)
 
+    # Plot a corner plot
     fig = corner.corner(flat_samples, labels=labels)
 
     plt.savefig('output/mcmc/{}'.format(title))
@@ -249,7 +253,8 @@ def posterior_cosi(params, cos_i):
     """
     Getting the analytical posterior distribution for cos i.
 
-    Formula from Masuda and Winn (2020).
+    Formula from Bowler et. al. (2023) (https://ui.adsabs.harvard.edu/abs/2023AJ....165..164B/abstract)
+    Equation A11 adapted from Masuda and Winn (2020)
 
     Attributes:
     -----------
@@ -262,8 +267,10 @@ def posterior_cosi(params, cos_i):
     analytical posterior distribution of cos i
     """
 
+    # define parameters from params
     vsini, sigma_vsini, v_eq, sigma_veq, = params
 
+    # Calculate the analytical posterior distribution
     upper_e = vsini - ((v_eq) * np.sqrt(1 - (cos_i**2)))
     below_e = 2 * ((sigma_vsini**2) + ((sigma_veq**2) * (1 - (cos_i**2))))
 
@@ -286,11 +293,21 @@ def plot_analytical(param, cos_i_samples, scale, title):
     params : array-like
         parameters of the star
         vsini, sigma_visini, v_eq, sigma_veq
+    cos_i_samples: array-like
+        samples of cos i from MCMC
+    scale   : int
+        an arbitary number to scale analytical posterior distribution
+        in the same order of the samples from MCMC.
+        both are not normalized so arbitary scaling doesn't have any
+        physical meaning.
+    title   : string
+        name file
 
     Return:
     -----------
-    analytical posterior distribution of cos i
+    plot of analytical posterior distribution of cos i
     """
+    
     # Make histogram
     hist, bin_edges = np.histogram(cos_i_samples, bins=50, density=True)
 
@@ -335,7 +352,7 @@ def plot_analytical(param, cos_i_samples, scale, title):
 #-------------------------------------------------------
 
 # Plot analytical solution
-def plot_i_samples(param, cos_i_samples, title):
+def plot_i_samples(cos_i_samples, title):
 
     """
     Getting the analytical posterior distribution for cos i.
@@ -344,13 +361,14 @@ def plot_i_samples(param, cos_i_samples, title):
 
     Attributes:
     -----------
-    params : array-like
-        parameters of the star
-        vsini, sigma_visini, v_eq, sigma_veq
+    cos_i_samples: array-like
+        samples of cos i from MCMC
+    title   : string
+        name file
 
     Return:
     -----------
-    analytical posterior distribution of cos i
+    plot of analytical posterior distribution of cos i
     """
 
     # Comvert cos i to i in deg
@@ -403,33 +421,42 @@ if __name__ == "__main__":
     # Parameters
     #-------------------------------------------------------
 
-    param = [68.12, 3.77, 0.3216891840137279, 0.3216891840137279*0.05, 0.48, 0.04, 75.57, 6.30] # my star
+    # Parameters -> vsini, sigma_vsini_obs, P_obs, sigma_P_obs, 
+    #               R_obs, sigma_R_obs, v_eq_obs, sigma_veq_obs
+    
+    # v_eq_obs is not calculated directly from P_obs and R_obs so that
+    # values from Masuda and Winn can be used in the program for benchmarking
+
+    param = [68.12, 3.77, 0.3216891840137279, 0.3216891840137279*0.05, 
+             0.48, 0.04, 75.57, 6.30] # my star
 
     # v sin i
     vsini_obs = param[0]
-    sigma_vsini_obs = param[1]
+    sigma_vsini_obs = param[1]             # in km/s
 
     # Period of the star
     P_obs = param[2] * u.d
     P_obs = P_obs.to(u.s)
-    P_obs = P_obs.value
+    P_obs = P_obs.value                    # in s
 
+    # Standard deviation of P_star
     sigma_P_obs = param[3] * u.d
     sigma_P_obs = sigma_P_obs.to(u.s)
-    sigma_P_obs = sigma_P_obs.value
+    sigma_P_obs = sigma_P_obs.value        # in s
 
     # Radius of the star
     R_obs = param[4] * R_sun 
     R_obs = R_obs.to(u.km)
-    R_obs = R_obs.value
+    R_obs = R_obs.value                    # in km
 
+    # Standard deviation of R_star
     sigma_R_obs = param[5] * R_sun 
     sigma_R_obs = sigma_R_obs.to(u.km)
-    sigma_R_obs = sigma_R_obs.value
+    sigma_R_obs = sigma_R_obs.value         # in km
 
     # Equatorial velocity
-    v_eq_obs = param[6] 
-    sigma_veq_obs = param[7] 
+    v_eq_obs = param[6]                     # in km/s
+    sigma_veq_obs = param[7]                # in km/s
 
     # Initial values
     cos_i = np.cos(np.deg2rad(50))
@@ -447,13 +474,17 @@ if __name__ == "__main__":
     sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability)
     sampler.run_mcmc(pos, 50000, progress=True)
 
+    # Name of labels
     labels = ["R_star", "P_star", "cos_i"]
 
+    # How many iterations to be discarded
+    discard = 0
+
     # Plot chain
-    plot_chain(sampler, discard=0, ndim=ndim, labels=labels, title='cosi_chain.png')
+    plot_chain(sampler, discard, ndim, labels, title='cosi_chain.png')
 
     # Plot corner
-    plot_corner(sampler, discard=0, ndim=ndim, labels=labels, title='cosi_corner.png')
+    plot_corner(sampler, discard, ndim, labels, title='cosi_corner.png')
 
     # Get the chain from the sampler
     chain = sampler.get_chain(flat=True)
@@ -465,10 +496,10 @@ if __name__ == "__main__":
     np.savetxt('data/mw_cosi_2.txt', cos_i_samples, delimiter=',')
 
     # Plot analytical
-    plot_analytical(param=param, cos_i_samples=cos_i_samples, scale=13.5, title='mw_cosi.png')
+    plot_analytical(param, cos_i_samples, scale=13.5, title='mw_cosi.png')
 
     # Plot i_samples
-    plot_i_samples(param=param, cos_i_samples=cos_i_samples, title='mw_inclination.png')
+    plot_i_samples(cos_i_samples, title='mw_inclination.png')
 
 
 

@@ -34,7 +34,7 @@ def plot_chain(reader, discard, ndim, title):
 #-------------------------------------------------------
 
 # Get corner plots
-def plot_corner(reader, discard, ndim, title):
+def plot_corner(reader, discard, title):
 
     """
     Plot corner to see posterior distribution of parameters
@@ -65,10 +65,10 @@ if __name__ == "__main__":
     reader = emcee.backends.HDFBackend(filename)
 
     # Plot chain
-    plot_chain(reader, discard=discard, ndim=ndim, title='reader_chain.png')
+    plot_chain(reader, discard, ndim, title='reader_chain.png')
 
     # Plot corner
-    plot_corner(reader, discard=discard, ndim=ndim, title='reader_corner.png')
+    plot_corner(reader, discard, title='reader_corner.png')
 
 
 

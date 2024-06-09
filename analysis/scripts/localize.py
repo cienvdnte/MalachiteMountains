@@ -11,7 +11,7 @@ from multiprocessing import Pool
 from scipy.interpolate import interp1d
 
 from funcs.model import FlareModulator
-from mcmc_plot import plot_chain, plot_corner
+from localize_plot import plot_chain, plot_corner
 
 import os
 os.environ['NUMEXPR_MAX_THREADS'] = '16'
@@ -414,19 +414,20 @@ if __name__ == "__main__":
 
     nwalkers = 20               # number of walkers
     ndim = len(initial)         # number of dimension
-    discard = 0                 # how many to discard
+    iter = 100                  # number of iterations
     n = '09'                    # for name filing purposes
-
+    discard = 0                 # how many to discard
+    
     # Get sampling from MCMC
-    sampler = get_mcmc_sampling(initial=initial, nwalkers=nwalkers, ndim=ndim,
-                                iter=25000, n=n, dis=False, continue_from_prev=True,
+    sampler = get_mcmc_sampling(initial, nwalkers, ndim, iter, n,
+                                dis=False, continue_from_prev=True,
                                 file_name='07_theta=10to40_25000.h5')
 
     # Plot chains
-    plot_chain(sampler, discard=discard, ndim=ndim, title='sampler_chain_{}.png'.format(n))
+    plot_chain(sampler, discard, ndim, title='sampler_chain_{}.png'.format(n))
 
     # Plot corner plot
-    plot_corner(sampler, discard=discard, ndim=ndim, title='sampler_corner_{}.png'.format(n))
+    plot_corner(sampler, discard, title='sampler_corner_{}.png'.format(n))
 
 
 

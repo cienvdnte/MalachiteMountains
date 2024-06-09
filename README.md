@@ -9,16 +9,8 @@ This branch contains the necessary data and scripts to reproduce results for loc
 - analysis/
   - scripts/
     - data/
-      - chains/
-        - *.h5 (chains from mcmc.py)
       - extracted_flare.csv (extracted flare from flare_extraction.py)
       - mw_cosi.txt (posterior distribution of cos i from cos_i_mw.py)
-
-    - output/
-      - flare_extract/
-        - *.png (all outputs from flare_extraction.py)
-      - mcmc/
-        - *.png (all outputs from cos_i_mw.py, mcmc.py, and mcmc_plot.py)
         
     - funcs/
       - *.py models from MalachiteMountains
@@ -28,10 +20,10 @@ This branch contains the necessary data and scripts to reproduce results for loc
       - script to generate cos i distribution from Masuda and Winn
     - `flare_extraction.py`
       - script to extract flares from stars with complex modulation
-    - `mcmc.py`
+    - `localize.py`
       - script to localize giant flare with MCMC
       - uses data from cos_i_mw.py and flare_extraction.py
-    - `mcmc_plot.py`
+    - `localize_plot.py`
       - script for plot purposes
     
 
