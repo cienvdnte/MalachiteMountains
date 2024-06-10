@@ -54,7 +54,7 @@ def log_likelihood(par):
 
     Attributes:
     -----------
-    par  : array-like
+    par  : list of tuples
         parameters of the star
     R_star: float
         radius of the star
@@ -118,7 +118,7 @@ def log_prior(par):
 
     Attributes:
     -----------
-    par  : array-like
+    par  : list of tuples
         parameters of the star
     R_star: float
         radius of the star
@@ -151,7 +151,7 @@ def log_probability(par):
 
     Attributes:
     -----------
-    par  : array-like
+    par  : list of tuples
         parameters of the star
     R_star: float
         radius of the star
@@ -290,7 +290,7 @@ def plot_analytical(param, cos_i_samples, scale, title):
 
     Attributes:
     -----------
-    params : array-like
+    params : list of tuples
         parameters of the star
         vsini, sigma_visini, v_eq, sigma_veq
     cos_i_samples: array-like

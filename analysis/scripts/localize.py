@@ -11,7 +11,7 @@ from multiprocessing import Pool
 from scipy.interpolate import interp1d
 
 from funcs.model import FlareModulator
-from localize_plot import plot_chain, plot_corner
+from mcmc_plot import plot_chain, plot_corner
 
 import os
 os.environ['NUMEXPR_MAX_THREADS'] = '16'
@@ -19,7 +19,9 @@ os.environ['OMP_NUM_THREADS'] = "1"
 
 import numexpr as ne
 
-#-------------------------------------------------------
+#-----------------------------------------------------------------------------
+# Non-plotting functions
+# ----------------------------------------------------------------------------
 
 # Get initials seperation
 def get_sep(params):
@@ -50,9 +52,9 @@ def get_sep(params):
     
     Return:
     -----------
-    flareparams: array-like
+    flareparams: list of tuples
         flare parameters: a, phi_a, fwhm
-    bumpparams: array-like
+    bumpparams: list of tuples
         bump parameters: t_cnter, sigma, amp_bump
 
     """
@@ -66,41 +68,6 @@ def get_sep(params):
     bumpparams = [t_center, sigma, amp_bump]
     
     return theta_a, phi0, i, flareparams, bumpparams
-
-# -----------------------------------------------------
-
-# Get peak bump plots
-def plot_bump(params, title):
-
-    """
-    Plot the bumps of the flare, from TESS lightcurve and model
-    
-    Attributes:
-    -----------
-    params  : array-like
-        parameters for the star, flare, and bump
-        theta_a, phi0, i, a, phi_a, fwhm, t_center, sigma, amp_bump
-    
-    Return:
-    -----------
-    plot of the modulated part of the flare
-
-    """
-
-    theta_a, phi0, i, flareparams, bumpparams = get_sep(params)
-    
-    modulated_flare = fm.modulated_flux(theta_a, phi0, i, flareparams, bumpparams, nobump=False)
-
-    plt.figure(figsize=[10, 6])
-    plt.plot(phi, modulated_flare, alpha=0.7, color='red', label='modulated peak-bump flare')
-    plt.plot(phi, flux, '--', color='grey')
-   
-    plt.ylim(1,1.2)
-    plt.xlabel('Time (radian)', fontsize=12)
-    plt.ylabel('Normalized Flux', fontsize=12)
-
-    plt.legend()
-    plt.savefig('output/mcmc/{}'.format(title))
 
 # -----------------------------------------------------
 
@@ -119,7 +86,7 @@ def log_prior(par):
 
     Attributes:
     -----------
-    params  : array-like
+    params  : list of tuples
         parameters for the star, flare, and bump
         theta_a, phi0, i, a, phi_a, fwhm, t_center, sigma, amp_bump
     pdf_interp: interpolation function
@@ -147,8 +114,10 @@ def log_prior(par):
         if 0 < np.cos(i) < 1:
             if 0 < theta_a < (np.pi/2):
 
+                # Get prior for cos i from interpolation from cos i samples
                 p = pdf_interp(np.cos(i))
 
+                # Adds up all informed (log) priors (cos i and theta)
                 if p <= 0:
                     return -np.inf
                 else:
@@ -164,7 +133,6 @@ def log_prior(par):
     return -np.inf
 
 
-
 # -----------------------------------------------------
 
 # Get log probability
@@ -175,7 +143,7 @@ def log_probability(par, flux, flux_err):
 
     Attributes:
     -----------
-    params  : array-like
+    params  : list of tuples
         parameters for the star, flare, and bump
         theta_a, phi0, i, a, phi_a, fwhm, t_center, sigma, amp_bump
     
@@ -192,7 +160,7 @@ def log_probability(par, flux, flux_err):
     
     return lp + fm.log_likelihood(par, nobump=False)
 
-#-------------------------------------------------------
+# -----------------------------------------------------
 
 # Get walkers at different positions
 def diversivy(pos, min, max, nwalkers, idx=0):
@@ -204,7 +172,7 @@ def diversivy(pos, min, max, nwalkers, idx=0):
 
     Attributes:
     -----------
-    pos : array-like
+    pos : list of tuples
         theta_a, phi0, i, a, phi_a, fwhm, t_center, sigma, amp_bump
     min : int
         starting value for theta_a dispersion
@@ -230,12 +198,12 @@ def diversivy(pos, min, max, nwalkers, idx=0):
     
     return pos
 
-#-------------------------------------------------------
+# -----------------------------------------------------
 
 # Get walkers at different positions
 def get_mcmc_sampling(initial, nwalkers, ndim, iter, n, dis=True,
                       min=None, max=None, continue_from_prev=False, 
-                      file_name=None):
+                      filename=None):
 
     """
     Run MCMC sampling to get posterior probability distribution of all
@@ -243,7 +211,7 @@ def get_mcmc_sampling(initial, nwalkers, ndim, iter, n, dis=True,
 
     Attributes:
     -----------
-    initial : array-like
+    initial : list of tuples
         theta_a, phi0, i, a, phi_a, fwhm, t_center, sigma, amp_bump
     nwalkers: int
         number of walkers, preferably more than 2 x ndim
@@ -258,6 +226,8 @@ def get_mcmc_sampling(initial, nwalkers, ndim, iter, n, dis=True,
         from a to b instead of moving near initial position
     continue_from_prev: bool
         if True, then chain continues from last chain
+    filename: string
+        file name for chains
     
     Return:
     -----------
@@ -273,14 +243,13 @@ def get_mcmc_sampling(initial, nwalkers, ndim, iter, n, dis=True,
 
     # Disperse walkers?
     if dis:
-    
         # To diversivy walkers position
-        pos = diversivy(pos=pos, min=min, max=max, nwalkers=nwalkers)
+        pos = diversivy(pos, min, max, nwalkers)
         file_n = '{}to{}'.format(min, max)
 
     # Set up backend filename
-    if file_name != None:
-        filename = "data/chains/{}".format(file_name)
+    if filename != None:
+        filename = "data/chains/{}".format(filename)
     else:
         filename = "data/chains/{}_theta={}_{}.h5".format(n, file_n, iter)
 
@@ -301,6 +270,45 @@ def get_mcmc_sampling(initial, nwalkers, ndim, iter, n, dis=True,
         sampler.run_mcmc(pos, iter, progress=True, store=True)
     
     return sampler
+
+
+#-----------------------------------------------------------------------------
+# All plotting functions
+# ----------------------------------------------------------------------------
+
+# Get peak bump plots
+def plot_bump(params, title):
+
+    """
+    Plot the bumps of the flare, from TESS lightcurve and model
+    
+    Attributes:
+    -----------
+    params  : list of tuples
+        parameters for the star, flare, and bump
+        theta_a, phi0, i, a, phi_a, fwhm, t_center, sigma, amp_bump
+    
+    Return:
+    -----------
+    plot of the modulated part of the flare
+
+    """
+
+    theta_a, phi0, i, flareparams, bumpparams = get_sep(params)
+    
+    modulated_flare = fm.modulated_flux(theta_a, phi0, i, flareparams, bumpparams, nobump=False)
+
+    plt.figure(figsize=[10, 6])
+    plt.plot(phi, modulated_flare, alpha=0.7, color='red', label='modulated peak-bump flare')
+    plt.plot(phi, flux, '--', color='grey')
+   
+    plt.ylim(1,1.2)
+    plt.xlabel('Time (radian)', fontsize=12)
+    plt.ylabel('Normalized Flux', fontsize=12)
+
+    plt.legend()
+    plt.savefig('output/mcmc/plot/{}'.format(title))
+
 
 #-------------------------------------------------------
 
@@ -416,19 +424,20 @@ if __name__ == "__main__":
     ndim = len(initial)         # number of dimension
     iter = 100                  # number of iterations
     n = '09'                    # for name filing purposes
-    discard = 0                 # how many to discard
+    discard = 10000                 # how many to discard
+
+    # If want to continue / plot from existing chains
+    filename = '07_theta=10to40_25000.h5'
     
     # Get sampling from MCMC
-    sampler = get_mcmc_sampling(initial, nwalkers, ndim, iter, n,
-                                dis=False, continue_from_prev=True,
-                                file_name='07_theta=10to40_25000.h5')
+    # sampler = get_mcmc_sampling(initial, nwalkers, ndim, iter, n, dis=False, continue_from_prev=True,
+    #                             filename=filename)
 
-    # Plot chains
-    plot_chain(sampler, discard, ndim, title='sampler_chain_{}.png'.format(n))
+    # Plot
+    # plot_and_results(n, filename=filename)
 
-    # Plot corner plot
-    plot_corner(sampler, discard, title='sampler_corner_{}.png'.format(n))
-
+    
+    
 
 
 

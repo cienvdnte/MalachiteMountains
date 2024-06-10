@@ -187,7 +187,7 @@ if __name__ == "__main__":
     df_lc['Radian'] = df_lc['Phase'] * 2*np.pi
 
     # Only consider lightcurve less than phase < 4
-    df_lc = df_lc[df_lc['Phase'] < 4]
+    df_lc = df_lc[df_lc['Phase'] < 6]
 
 
     # Drop additional flares
@@ -211,7 +211,7 @@ if __name__ == "__main__":
 
     # Output as a CSV
     # --------------------------------------------------------------------
-    df_lc.to_csv('data/extracted_flare.csv', sep=",", index=False)
+    df_lc.to_csv('data/longer_extracted_flare.csv', sep=",", index=False)
 
 
     # Plot extracted flare
