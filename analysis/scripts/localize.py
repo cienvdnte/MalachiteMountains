@@ -407,6 +407,9 @@ if __name__ == "__main__":
     # Initial parameters
     initial = theta_a, phi0, i, a, phi_a, fwhm, t_center, sigma, amp_bump
 
+    # Labels for plots
+    labels = ['theta [deg]', 'phi0 [deg]', 'i [deg]', 'a', 'phi_a [rad]', 'fwhm', 't_center [rad]', 'sigma', 'amp_bump']
+
     # Plot peak bump of initial parameters
     plot_bump(initial, 'initial_bump.png')
 
@@ -429,6 +432,12 @@ if __name__ == "__main__":
     # Get sampling from MCMC
     sampler = get_mcmc_sampling(initial, nwalkers, ndim, iter, n, dis=False, continue_from_prev=True,
                                 filename=filename)
+    
+    # Plot chain
+    plot_chain(sampler, discard, title='sampler_chain_{}'.format(n))
+
+    # Plot corner
+    plot_corner(sampler, discard, labels, title='sampler_corner_{}'.format(n))
 
     
     

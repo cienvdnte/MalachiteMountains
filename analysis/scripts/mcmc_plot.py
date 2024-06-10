@@ -26,7 +26,7 @@ def convert_to_deg(sam):
 #-------------------------------------------------------
 
 # Get chain plots
-def plot_chain(sampler, ndim, title):
+def plot_chain(sampler, title):
 
     """
     Plot chains of walkers for n iteration
