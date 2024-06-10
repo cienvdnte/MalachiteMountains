@@ -32,8 +32,8 @@ This branch contains the necessary data and scripts to reproduce results for loc
     - `localize.py`
       - script to localize giant flare with MCMC
       - uses data from cos_i_mw.py and flare_extraction.py
-    - `localize_plot.py`
-      - script for plot purposes
+    - `mcmc_plot.py`
+      - script for plot purposes (all plots are generated here)
     - `vsini_GaiaRVS.ipynb`
       - jupyter notebook to get v sin i using cross correlation method from Reiners et. al.(2012) https://ui.adsabs.harvard.edu/abs/2012AJ....143...93R/abstract
       - documentation in progress

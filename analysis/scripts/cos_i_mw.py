@@ -212,7 +212,7 @@ def plot_chain(sampler, discard, ndim, labels, title):
 
     axes[-1].set_xlabel("step number")
 
-    plt.savefig('output/mcmc/{}'.format(title))
+    plt.savefig('output/inclination/{}'.format(title))
 
 #-------------------------------------------------------
 
@@ -243,7 +243,7 @@ def plot_corner(sampler, discard, ndim, labels, title):
     # Plot a corner plot
     fig = corner.corner(flat_samples, labels=labels)
 
-    plt.savefig('output/mcmc/{}'.format(title))
+    plt.savefig('output/inclination/{}'.format(title))
 
 #-------------------------------------------------------
 
@@ -347,7 +347,7 @@ def plot_analytical(param, cos_i_samples, scale, title):
 
     plt.legend()
 
-    plt.savefig('output/mcmc/{}'.format(title))
+    plt.savefig('output/inclination/{}'.format(title))
 
 #-------------------------------------------------------
 
@@ -401,18 +401,21 @@ def plot_i_samples(cos_i_samples, title):
     normal_patch = mpatches.Patch(alpha=0.4, color='royalblue', label='Marginal posterior')
 
     # Add labels and title
-    plt.xlabel('i [deg]')
-    plt.ylabel('Density')
-    plt.title('i = {:.2f} (+{:.2f}/-{:.2f}) [deg]'.format(mcmc[1], q[1], q[0]))
+    plt.xlabel('i [deg]', fontsize=12)
+    plt.ylabel('Density', fontsize=12)
+    plt.title('Posterior distribution for stellar inclination', fontsize=13)
     plt.xlim(0,90)
     # plt.ylim(0,8)
 
     # Add legend to the plot
     plt.legend(handles=[highlight_patch, normal_patch])
 
-    # plt.legend()
+    # Export result to a file
+    with open('output/inclination/incli_sampling.txt', 'w') as f:
+        f.write('-------- inclination from MCMC sampling --------\n')
+        f.write('i = {:.4f} (+{:.4f}, -{:.4f}) [deg]'.format(mcmc[1], q[1], q[0]))
 
-    plt.savefig('output/mcmc/{}'.format(title))
+    plt.savefig('output/inclination/{}'.format(title))
 
 #-------------------------------------------------------
 
@@ -492,14 +495,14 @@ if __name__ == "__main__":
     # Extract the relevant parameter values (in this case, the first parameter is cos_i)
     cos_i_samples = chain[:, 2]
 
-    # Export cos_i
-    np.savetxt('data/mw_cosi_2.txt', cos_i_samples, delimiter=',')
-
     # Plot analytical
     plot_analytical(param, cos_i_samples, scale=13.5, title='mw_cosi.png')
 
     # Plot i_samples
     plot_i_samples(cos_i_samples, title='mw_inclination.png')
+
+    # Export cos_i
+    np.savetxt('data/mw_cosi_2.txt', cos_i_samples, delimiter=',')
 
 
 

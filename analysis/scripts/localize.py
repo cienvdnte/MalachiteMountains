@@ -20,8 +20,6 @@ os.environ['OMP_NUM_THREADS'] = "1"
 import numexpr as ne
 
 #-----------------------------------------------------------------------------
-# Non-plotting functions
-# ----------------------------------------------------------------------------
 
 # Get initials seperation
 def get_sep(params):
@@ -273,8 +271,6 @@ def get_mcmc_sampling(initial, nwalkers, ndim, iter, n, dis=True,
 
 
 #-----------------------------------------------------------------------------
-# All plotting functions
-# ----------------------------------------------------------------------------
 
 # Get peak bump plots
 def plot_bump(params, title):
@@ -321,6 +317,7 @@ if __name__ == "__main__":
     # Extracted flare
     flare = np.loadtxt('data/extracted_flare.csv', delimiter=',', skiprows=1)
 
+    time = flare[:, 0]      # Time in BJD
     phi = flare[:, 4]    # Time in radian
     flux = flare[:, 1] + 1  # Flux, normalized at 1
     flux_err = flare[:, 2]     # Error in flux
@@ -426,15 +423,12 @@ if __name__ == "__main__":
     n = '09'                    # for name filing purposes
     discard = 10000                 # how many to discard
 
-    # If want to continue / plot from existing chains
+    # If want to continue from existing chains
     filename = '07_theta=10to40_25000.h5'
     
     # Get sampling from MCMC
-    # sampler = get_mcmc_sampling(initial, nwalkers, ndim, iter, n, dis=False, continue_from_prev=True,
-    #                             filename=filename)
-
-    # Plot
-    # plot_and_results(n, filename=filename)
+    sampler = get_mcmc_sampling(initial, nwalkers, ndim, iter, n, dis=False, continue_from_prev=True,
+                                filename=filename)
 
     
     

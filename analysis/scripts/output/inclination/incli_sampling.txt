@@ -1,0 +1,2 @@
+-------- inclination from MCMC sampling --------
+i = 69.2758 (+13.2453, -11.7077) [deg]

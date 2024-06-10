@@ -187,8 +187,8 @@ if __name__ == "__main__":
     df_lc['Radian'] = df_lc['Phase'] * 2*np.pi
 
     # Only consider lightcurve less than phase < 4
-    df_lc = df_lc[df_lc['Phase'] < 6]
-
+    # For MCMC for computation purposes
+    # df_lc = df_lc[df_lc['Phase'] < 4]
 
     # Drop additional flares
     #-----------------------
